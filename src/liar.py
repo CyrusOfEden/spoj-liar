@@ -1,39 +1,5 @@
-from queue import Queue, PriorityQueue
-
 from problem_domain import Paradox, HonestyRelationships, ConcludedHonestyState
-
-
-class StateSearch():
-    def __init__(self, initial_state):
-        self.state = initial_state
-
-    def depth_search(self):
-        stack = [self.state]
-        while stack:
-            state = stack.pop()
-            if state.is_solution():
-                yield state
-            stack += list(state.frontier())
-
-    def breadth_search(self):
-        queue = Queue()
-        queue.put(self.state)
-        while not queue.empty():
-            state = queue.get()
-            if state.is_solution():
-                yield state
-            for next_state in state.frontier():
-                queue.put(next_state)
-
-    def best_search(self, cost):
-        queue = PriorityQueue()
-        queue.put((cost(self.state), self.state))
-        while not queue.empty():
-            state_cost, state = queue.get()
-            if state.is_solution():
-                return state
-            for next_state in state.frontier():
-                queue.put((cost(next_state), next_state))
+from solvers import DFS, BFS
 
 
 def load_classes(from_file):
@@ -61,21 +27,20 @@ def class_score(class_survey):
         ConcludedHonestyState([value], domain) for value in (True, False, None)
     ]
 
-    valid_states = [
-        s for initial_state in starting_states
-        for s in StateSearch(initial_state).depth_search()
+    concluded_states = [
+        s for initial_state in starting_states for s in BFS(initial_state)()
     ]
 
-    if not valid_states:
+    if not concluded_states:
         raise Paradox()
 
-    return (min(valid_states).liar_count(), max(valid_states).liar_count())
+    return (min(concluded_states).liar_count(),
+            max(concluded_states).liar_count())
 
 
-if __name__ == "__main__":
-    class_surveys = load_classes(open("../sample.txt"))
-    # import sys
-    # class_surveys = load_classes(sys.stdin)
+def spoj():
+    import sys
+    class_surveys = load_classes(sys.stdin)
     for index, survey in enumerate(class_surveys):
         try:
             atleast, atmost = class_score(survey)
@@ -84,3 +49,24 @@ if __name__ == "__main__":
         else:
             print("Class Room#%s contains atleast %d and atmost %d liars" %
                   (index + 1, atleast, atmost))
+
+
+def test():
+    class_surveys = load_classes(open("../test.txt"))
+    expected = [None, (0, 3), (3, 4), (4, 4)]
+    for index, (survey, expected) in enumerate(zip(class_surveys, expected)):
+        try:
+            atleast, atmost = class_score(survey)
+        except Paradox:
+            assert expected is None
+            print("Class Room#%s is paradoxical" % (index + 1))
+        else:
+            assert atleast == expected[0]
+            assert atmost == expected[1]
+            print("Class Room#%s contains atleast %d and atmost %d liars" %
+                  (index + 1, atleast, atmost))
+
+
+if __name__ == "__main__":
+    # spoj()
+    test()

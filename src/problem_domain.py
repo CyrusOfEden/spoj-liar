@@ -112,7 +112,7 @@ class ConcludedHonestyState(ConcludedState):
                     """Perjury!"""
                     return False
             if i_is_honest is False and not i_lied:
-                "Also perjury"
+                "Perjury again!"
                 return False
             self.state[i] = not i_lied
 
