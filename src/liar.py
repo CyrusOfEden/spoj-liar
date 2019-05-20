@@ -1,5 +1,8 @@
-from problem_domain import Paradox, HonestyRelationships, ConcludedHonestyState
-from solvers import DFS, BFS
+from pprint import pprint
+
+
+class Paradox(ValueError):
+    pass
 
 
 def load_classes(from_file):
@@ -21,52 +24,106 @@ def parse_one_class(from_file):
     return replies
 
 
+def concluded_states(replies):
+    student_count = len(replies)
+
+    def students_other_than(*students):
+        students = set(students)
+        return (j for j in range(student_count) if j not in students)
+
+    def conclusion(starting_with):
+        i, i_is_honest = starting_with
+        state = [None] * student_count
+        state[i] = i_is_honest
+        for j in students_other_than(i):
+            j_is_honest = state[j]
+            if i_is_honest:
+                "i is honest"
+                if replies[j][i]:
+                    state[j] = i_is_honest
+                elif replies[i][j]:
+                    return None, False
+                else:
+                    state[j] = replies[i][j]
+            elif replies[j][i]:
+                "j says i is honest, but i is not honest"
+                state[j] = False
+        return state, True
+
+    def validated(state):
+        for i, i_is_honest in enumerate(state):
+            if i_is_honest is None:
+                conclusive = False
+                for j in students_other_than(i):
+                    if (replies[i][j] or replies[j][i]):
+                        conclusive = True
+                    if state[j] is not None and replies[i][j] != state[j]:
+                        state[i] = False
+                        break
+                else:
+                    if conclusive:
+                        state[i] = True
+        for i, i_is_honest in enumerate(state):
+            if i_is_honest is True:
+                for j in students_other_than(i):
+                    if replies[i][j] != state[j]:
+                        return None, False
+            elif i_is_honest is False:
+                i_lied = False
+                i_conclusive = False
+                for j in students_other_than(i):
+                    if replies[i][j] or replies[j][i]:
+                        i_conclusive = True
+                    if state[j] is not None and replies[i][j] != state[j]:
+                        i_lied = True
+                        break
+                if i_conclusive and i_is_honest == i_lied:
+                    return None, False
+        return state, True
+
+    states = []
+    for i in range(student_count):
+        for assumption in (True, False):
+            state, ok = conclusion(starting_with=(i, assumption))
+            if not ok:
+                continue
+            state, ok = validated(state)
+            if ok:
+                states.append(state)
+    return states
+
+
 def class_score(class_survey):
-    domain = HonestyRelationships(class_survey)
-    starting_states = [
-        ConcludedHonestyState([value], domain) for value in (True, False, None)
-    ]
+    possible_states = list(concluded_states(class_survey))
 
-    concluded_states = [
-        s for initial_state in starting_states for s in BFS(initial_state)()
-    ]
-
-    if not concluded_states:
+    if not possible_states:
         raise Paradox()
 
-    return (min(concluded_states).liar_count(),
-            max(concluded_states).liar_count())
+    liars_count = [
+        sum(1 for honest_student in possibility if not honest_student)
+        for possibility in possible_states
+    ]
+
+    return min(liars_count), max(liars_count)
 
 
-def spoj():
-    import sys
-    class_surveys = load_classes(sys.stdin)
-    for index, survey in enumerate(class_surveys):
-        try:
-            atleast, atmost = class_score(survey)
-        except Paradox:
-            print("Class Room#%s is paradoxical" % (index + 1))
-        else:
-            print("Class Room#%s contains atleast %d and atmost %d liars" %
-                  (index + 1, atleast, atmost))
+def print_class_score(index, class_survey):
+    try:
+        atleast, atmost = class_score(class_survey)
+    except Paradox:
+        print("Class Room#%s is paradoxical" % (index + 1))
+    else:
+        print("Class Room#%s contains atleast %d and atmost %d liars" %
+              (index + 1, atleast, atmost))
 
 
-def test():
-    class_surveys = load_classes(open("../test.txt"))
-    expected = [None, (0, 3), (3, 4), (4, 4)]
-    for index, (survey, expected) in enumerate(zip(class_surveys, expected)):
-        try:
-            atleast, atmost = class_score(survey)
-        except Paradox:
-            assert expected is None
-            print("Class Room#%s is paradoxical" % (index + 1))
-        else:
-            assert atleast == expected[0]
-            assert atmost == expected[1]
-            print("Class Room#%s contains atleast %d and atmost %d liars" %
-                  (index + 1, atleast, atmost))
+def run(in_file):
+    class_surveys = load_classes(in_file)
+    for class_number, class_survey in enumerate(class_surveys):
+        print_class_score(class_number, class_survey)
 
 
 if __name__ == "__main__":
-    # spoj()
-    test()
+    # run(open("../test.txt"))
+    from sys import stdin
+    run(stdin)
