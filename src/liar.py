@@ -1,10 +1,3 @@
-from pprint import pprint
-
-
-class Paradox(ValueError):
-    pass
-
-
 def load_classes(from_file):
     """Given a source file object, return all class cases."""
     from_file.seek(0)
@@ -24,77 +17,75 @@ def parse_one_class(from_file):
     return replies
 
 
+def students(state, other_than=None):
+    return (j for j in range(len(state)) if j != other_than)
+
+
+def conclusion(replies, starting_with):
+    i, i_is_honest = starting_with
+    state = [None] * len(replies)
+    state[i] = i_is_honest
+    for j in students(replies, other_than=i):
+        j_is_honest = state[j]
+        if i_is_honest:
+            "i is honest"
+            if replies[j][i]:
+                state[j] = i_is_honest
+            elif replies[i][j]:
+                return None, False
+            else:
+                state[j] = replies[i][j]
+        elif replies[j][i]:
+            "j says i is honest, but i is not honest"
+            state[j] = False
+    return state, True
+
+
+def validated(replies, state):
+    for i, i_is_honest in enumerate(state):
+        if i_is_honest is None:
+            conclusive = False
+            for j in students(state, other_than=i):
+                if (replies[i][j] or replies[j][i]):
+                    conclusive = True
+                if state[j] is not None and replies[i][j] != state[j]:
+                    state[i] = False
+                    break
+            else:
+                if conclusive:
+                    state[i] = True
+    for i, i_is_honest in enumerate(state):
+        if i_is_honest is True:
+            for j in students(state, other_than=i):
+                if replies[i][j] != state[j]:
+                    return None, False
+        elif i_is_honest is False:
+            i_lied = False
+            i_conclusive = False
+            for j in students(state, other_than=i):
+                if replies[i][j] or replies[j][i]:
+                    i_conclusive = True
+                if state[j] is not None and replies[i][j] != state[j]:
+                    i_lied = True
+                    break
+            if i_conclusive and i_is_honest == i_lied:
+                return None, False
+    return state, True
+
+
 def concluded_states(replies):
-    student_count = len(replies)
-
-    def students_other_than(*students):
-        students = set(students)
-        return (j for j in range(student_count) if j not in students)
-
-    def conclusion(starting_with):
-        i, i_is_honest = starting_with
-        state = [None] * student_count
-        state[i] = i_is_honest
-        for j in students_other_than(i):
-            j_is_honest = state[j]
-            if i_is_honest:
-                "i is honest"
-                if replies[j][i]:
-                    state[j] = i_is_honest
-                elif replies[i][j]:
-                    return None, False
-                else:
-                    state[j] = replies[i][j]
-            elif replies[j][i]:
-                "j says i is honest, but i is not honest"
-                state[j] = False
-        return state, True
-
-    def validated(state):
-        for i, i_is_honest in enumerate(state):
-            if i_is_honest is None:
-                conclusive = False
-                for j in students_other_than(i):
-                    if (replies[i][j] or replies[j][i]):
-                        conclusive = True
-                    if state[j] is not None and replies[i][j] != state[j]:
-                        state[i] = False
-                        break
-                else:
-                    if conclusive:
-                        state[i] = True
-        for i, i_is_honest in enumerate(state):
-            if i_is_honest is True:
-                for j in students_other_than(i):
-                    if replies[i][j] != state[j]:
-                        return None, False
-            elif i_is_honest is False:
-                i_lied = False
-                i_conclusive = False
-                for j in students_other_than(i):
-                    if replies[i][j] or replies[j][i]:
-                        i_conclusive = True
-                    if state[j] is not None and replies[i][j] != state[j]:
-                        i_lied = True
-                        break
-                if i_conclusive and i_is_honest == i_lied:
-                    return None, False
-        return state, True
-
-    states = []
-    for i in range(student_count):
+    for i in students(replies):
         for assumption in (True, False):
-            state, ok = conclusion(starting_with=(i, assumption))
+            state, ok = conclusion(replies, starting_with=(i, assumption))
             if not ok:
                 continue
-            state, ok = validated(state)
+            state, ok = validated(replies, state)
             if ok:
-                states.append(state)
-    return states
+                yield state
 
 
-def class_score(class_survey):
-    possible_states = list(concluded_states(class_survey))
+def class_score(replies):
+    possible_states = list(concluded_states(replies))
 
     if not possible_states:
         raise Paradox()
