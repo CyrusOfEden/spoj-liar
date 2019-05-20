@@ -43,33 +43,18 @@ def conclusion(replies, starting_with):
 
 def validated(replies, state):
     for i, i_is_honest in enumerate(state):
-        if i_is_honest is None:
-            conclusive = False
-            for j in students(state, other_than=i):
-                if (replies[i][j] or replies[j][i]):
-                    conclusive = True
-                if state[j] is not None and replies[i][j] != state[j]:
-                    state[i] = False
-                    break
-            else:
-                if conclusive:
-                    state[i] = True
-    for i, i_is_honest in enumerate(state):
-        if i_is_honest is True:
-            for j in students(state, other_than=i):
-                if replies[i][j] != state[j]:
-                    return None, False
-        elif i_is_honest is False:
-            i_lied = False
-            i_conclusive = False
-            for j in students(state, other_than=i):
-                if replies[i][j] or replies[j][i]:
-                    i_conclusive = True
-                if state[j] is not None and replies[i][j] != state[j]:
-                    i_lied = True
-                    break
-            if i_conclusive and i_is_honest == i_lied:
+        i_lied = False
+        conclusive = False
+        for j in students(state, other_than=i):
+            if (replies[i][j] or replies[j][i]):
+                conclusive = True
+            if state[j] is not None and replies[i][j] != state[j]:
+                i_lied = True
+                break
+        if conclusive:
+            if i_is_honest is not None and i_is_honest == i_lied:
                 return None, False
+            state[i] = not i_lied
     return state, True
 
 
@@ -88,22 +73,22 @@ def class_score(replies):
     possible_states = list(concluded_states(replies))
 
     if not possible_states:
-        raise Paradox()
+        return None, False
 
-    liars_count = [
+    liars_count = sorted([
         sum(1 for honest_student in possibility if not honest_student)
         for possibility in possible_states
-    ]
+    ])
 
-    return min(liars_count), max(liars_count)
+    return (liars_count[0], liars_count[-1]), True
 
 
 def print_class_score(index, class_survey):
-    try:
-        atleast, atmost = class_score(class_survey)
-    except Paradox:
+    score, ok = class_score(class_survey)
+    if not ok:
         print("Class Room#%s is paradoxical" % (index + 1))
     else:
+        atleast, atmost = score
         print("Class Room#%s contains atleast %d and atmost %d liars" %
               (index + 1, atleast, atmost))
 
@@ -115,6 +100,6 @@ def run(in_file):
 
 
 if __name__ == "__main__":
-    # run(open("../test.txt"))
-    from sys import stdin
-    run(stdin)
+    run(open("../test.txt"))
+    # from sys import stdin
+    # run(stdin)
