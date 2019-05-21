@@ -1,34 +1,25 @@
+from __future__ import print_function
+
+
 def load_classes(from_file):
-    """Given a source file object, return all class cases."""
-    from_file.seek(0)
-    test_cases = int(from_file.readline().strip())
-    classes = [parse_one_class(from_file) for _ in range(test_cases)]
+    test_cases = int(next(from_file))
+    classes = [None] * test_cases
+    for i in range(test_cases):
+        count = int(next(from_file))
+        classes[i] = [[c == 'T' for c in next(from_file)]
+                      for _ in range(count)]
     return classes
 
 
-def parse_one_class(from_file):
-    """Given a Python file object, construct a 2D `class_survey` array of booleans."""
-    student_count = int(from_file.readline().strip())
-    replies = [[] for _ in range(student_count)]
-    for i in range(student_count):
-        for char in from_file.readline().strip():
-            # True for when they're truthful, False for when they're a liar.
-            replies[i].append(char == 'T')
-    return replies
-
-
-def students(state, other_than=None):
-    return (j for j in range(len(state)) if j != other_than)
-
-
-def conclusion(replies, starting_with):
+def conclusion(replies, count, starting_with):
     i, i_is_honest = starting_with
-    state = [None] * len(replies)
+    state = [None] * count
     state[i] = i_is_honest
-    for j in students(replies, other_than=i):
+    for j in range(count):
+        if i == j:
+            continue
         j_is_honest = state[j]
         if i_is_honest:
-            "i is honest"
             if replies[j][i]:
                 state[j] = i_is_honest
             elif replies[i][j]:
@@ -36,19 +27,18 @@ def conclusion(replies, starting_with):
             else:
                 state[j] = replies[i][j]
         elif replies[j][i]:
-            "j says i is honest, but i is not honest"
             state[j] = False
-    return state, True
-
-
-def validated(replies, state):
     for i, i_is_honest in enumerate(state):
         i_lied = False
         conclusive = False
-        for j in students(state, other_than=i):
-            if (replies[i][j] or replies[j][i]):
+        for j in range(count):
+            if i == j:
+                continue
+            j_as_per_i = replies[i][j]
+            if j_as_per_i or replies[j][i]:
                 conclusive = True
-            if state[j] is not None and replies[i][j] != state[j]:
+            j_is_honest = state[j]
+            if j_is_honest is not None and j_as_per_i != j_is_honest:
                 i_lied = True
                 break
         if conclusive:
@@ -58,48 +48,48 @@ def validated(replies, state):
     return state, True
 
 
-def concluded_states(replies):
-    for i in students(replies):
+def class_score(replies):
+    count = len(replies)
+    min_liars = count
+    max_liars = -1
+
+    for i in range(count):
         for assumption in (True, False):
-            state, ok = conclusion(replies, starting_with=(i, assumption))
+            state, ok = conclusion(replies,
+                                   count,
+                                   starting_with=(i, assumption))
             if not ok:
                 continue
-            state, ok = validated(replies, state)
-            if ok:
-                yield state
+            liar_count = sum(1 for v in state if not v)
+            if liar_count > max_liars:
+                max_liars = liar_count
+            elif liar_count < min_liars:
+                min_liars = liar_count
 
-
-def class_score(replies):
-    possible_states = list(concluded_states(replies))
-
-    if not possible_states:
+    if max_liars == -1:
         return None, False
 
-    liars_count = sorted([
-        sum(1 for honest_student in possibility if not honest_student)
-        for possibility in possible_states
-    ])
-
-    return (liars_count[0], liars_count[-1]), True
+    return (min_liars, max_liars), True
 
 
 def print_class_score(index, class_survey):
     score, ok = class_score(class_survey)
     if not ok:
-        print("Class Room#%s is paradoxical" % (index + 1))
+        print("Class Room#%s is paradoxical" % index)
     else:
         atleast, atmost = score
         print("Class Room#%s contains atleast %d and atmost %d liars" %
-              (index + 1, atleast, atmost))
+              (index, atleast, atmost))
 
 
 def run(in_file):
     class_surveys = load_classes(in_file)
-    for class_number, class_survey in enumerate(class_surveys):
-        print_class_score(class_number, class_survey)
+    for index, class_survey in enumerate(class_surveys):
+        print_class_score(index + 1, class_survey)
 
 
 if __name__ == "__main__":
-    run(open("../test.txt"))
-    # from sys import stdin
-    # run(stdin)
+    # for _ in range(10000):
+    # run(open("../test.txt"))
+    from sys import stdin
+    run(stdin)
