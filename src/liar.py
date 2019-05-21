@@ -15,36 +15,41 @@ def conclusion(replies, count, starting_with):
     i, i_is_honest = starting_with
     state = [None] * count
     state[i] = i_is_honest
+    # Concluding what we can
     for j in range(count):
         if i == j:
             continue
         j_is_honest = state[j]
+        j_as_per_i = replies[i][j]
+        i_as_per_j = replies[j][i]
+        if i_as_per_j == j_as_per_i:
+            state[j] = i_is_honest
         if i_is_honest:
-            if replies[j][i]:
-                state[j] = i_is_honest
-            elif replies[i][j]:
+            if j_as_per_i is True and i_as_per_j is False:
                 return None, False
-            else:
-                state[j] = replies[i][j]
+            state[j] = j_as_per_i
         elif replies[j][i]:
             state[j] = False
+    # Here we're deciding whether each student was honest, or lied
     for i, i_is_honest in enumerate(state):
         i_lied = False
         conclusive = False
         for j in range(count):
             if i == j:
                 continue
-            j_as_per_i = replies[i][j]
-            if j_as_per_i or replies[j][i]:
-                conclusive = True
             j_is_honest = state[j]
+            j_as_per_i = replies[i][j]
+            i_as_per_j = replies[j][i]
+            if j_as_per_i or i_as_per_j:
+                conclusive = True
             if j_is_honest is not None and j_as_per_i != j_is_honest:
                 i_lied = True
                 break
         if conclusive:
-            if i_is_honest is not None and i_is_honest == i_lied:
+            if i_is_honest is None:
+                state[i] = not i_lied
+            elif i_is_honest == i_lied:
                 return None, False
-            state[i] = not i_lied
     return state, True
 
 
@@ -89,7 +94,6 @@ def run(in_file):
 
 
 if __name__ == "__main__":
-    # for _ in range(10000):
     # run(open("../test.txt"))
     from sys import stdin
     run(stdin)
