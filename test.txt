@@ -1,7 +1,14 @@
-5
+8
+1
+L
+1
+T
 2
 LL
 TT
+2
+TT
+LL
 3
 TTT
 TTT
